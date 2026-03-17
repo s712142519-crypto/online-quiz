@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - name: string (required)
+    //   - email: string (required, email format)
+    //   - role: string (required, 'admin' or 'user')
+    //
+    // Collection: questions
+    // Document ID: {questionId}
+    // Fields:
+    //   - question: string (required)
+    //   - options: list (required, 4 strings)
+    //   - correct_answer: int (required, 0-3)
+    //
+    // Collection: results
+    // Document ID: {resultId}
+    // Fields:
+    //   - user_id: string (required)
+    //   - user_name: string (required)
+    //   - score: int (required)
+    //   - total_questions: int (required)
+    //   - date: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "s712142519@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasOnly(['name', 'email', 'role', 'uid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.role in ['admin', 'user'] &&
+             (!('uid' in data) || data.uid is string);
+    }
+
+    function isValidQuestion(data) {
+      return data.keys().hasOnly(['question', 'options', 'correct_answer']) &&
+             data.question is string && data.question.size() > 0 && data.question.size() < 1000 &&
+             data.options is list && data.options.size() == 4 &&
+             data.correct_answer is int && data.correct_answer >= 0 && data.correct_answer <= 3;
+    }
+
+    function isValidResult(data) {
+      return data.keys().hasOnly(['user_id', 'user_name', 'score', 'total_questions', 'date']) &&
+             data.user_id is string && data.user_id == request.auth.uid &&
+             data.user_name is string && data.user_name.size() > 0 &&
+             data.score is int && data.score >= 0 &&
+             data.total_questions is int && data.total_questions > 0 &&
+             data.date is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /questions/{questionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidQuestion(request.resource.data);
+    }
+
+    match /results/{resultId} {
+      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidResult(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

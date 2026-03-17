@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "User's full name" },
+        "email": { "type": "string", "format": "email", "description": "User's email address" },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "User's role in the system" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "A quiz question with multiple choices",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string", "description": "The question text" },
+        "options": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of 4 options"
+        },
+        "correct_answer": { "type": "integer", "description": "Index of the correct option (0-3)" }
+      },
+      "required": ["question", "options", "correct_answer"]
+    },
+    "Result": {
+      "title": "Result",
+      "description": "A user's quiz result",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string", "description": "UID of the user who took the quiz" },
+        "user_name": { "type": "string", "description": "Name of the user" },
+        "score": { "type": "integer", "description": "Number of correct answers" },
+        "total_questions": { "type": "integer", "description": "Total number of questions in the quiz" },
+        "date": { "type": "string", "format": "date-time", "description": "When the quiz was completed" }
+      },
+      "required": ["user_id", "score", "total_questions", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Quiz questions"
+    },
+    "/results/{resultId}": {
+      "schema": "Result",
+      "description": "Quiz results"
+    }
+  }
+}

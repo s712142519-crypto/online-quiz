@@ -1,0 +1,15 @@
+{
+  "name": "ScriptMaster Quiz",
+  "short_name": "ScriptMaster",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#46178f",
+  "theme_color": "#46178f",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

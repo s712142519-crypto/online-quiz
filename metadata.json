@@ -1,0 +1,5 @@
+{
+  "name": "ScriptMaster Real-Time Quiz",
+  "description": "A full-stack real-time multiplayer quiz platform similar to Kahoot, featuring live leaderboards, synced timers, and QR code joining.",
+  "requestFramePermissions": []
+}

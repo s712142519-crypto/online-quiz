@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScriptMaster Real-Time Quiz</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* Additional Kahoot-like styles */
+        .role-selection {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 50px;
+        }
+        .role-card {
+            background: var(--glass-bg);
+            padding: 40px;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 200px;
+            text-align: center;
+        }
+        .role-card:hover { transform: scale(1.05); background: rgba(255,255,255,0.2); }
+        .role-card i { font-size: 3rem; margin-bottom: 15px; display: block; }
+        
+        .lobby-players {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .player-tag {
+            background: var(--accent-color);
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+        
+        .qr-container { margin: 20px auto; text-align: center; }
+        .qr-container img { border-radius: 12px; border: 5px solid white; }
+        
+        .game-code-display {
+            font-size: 3rem;
+            font-weight: 800;
+            background: white;
+            color: #000000; /* Numbers in black as requested */
+            padding: 10px 30px;
+            border-radius: 15px;
+            display: inline-block;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Quiz Creation Styles */
+        .creation-form {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .question-input-block {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+        .genre-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .genre-card {
+            background: var(--glass-bg);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .genre-card.selected {
+            border-color: var(--accent-color);
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Swipeable Avatars */
+        .avatar-selection {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 20px 10px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Hide scrollbar Firefox */
+        }
+        .avatar-selection::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome/Safari */
+        
+        .avatar-option {
+            flex: 0 0 80px;
+            width: 80px;
+            height: 80px;
+            scroll-snap-align: center;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 4px solid transparent;
+            transition: all 0.3s ease;
+            background: var(--glass-bg);
+        }
+        .avatar-option.selected { border-color: var(--accent-color); transform: scale(1.1); background: rgba(255,255,255,0.3); }
+
+        .feedback-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+        .feedback-overlay.correct { background: var(--correct-color); }
+        .feedback-overlay.wrong { background: var(--wrong-color); }
+        .feedback-icon { font-size: 5rem; margin-bottom: 20px; }
+        
+        .game-code-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            z-index: 100;
+        }
+        
+        .leaderboard-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--primary-gradient);
+            display: none;
+            padding: 40px;
+            z-index: 900;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Role Selection Page -->
+        <div id="role-page" class="page active">
+            <h1 class="title" style="text-align: center;">ScriptMaster Real-Time</h1>
+            <div class="role-selection">
+                <div class="role-card" onclick="showPage('genre-page')">
+                    <i class="fas fa-plus-circle"></i>
+                    <h3>Create Quiz</h3>
+                </div>
+                <div class="role-card" onclick="initPlayer()">
+                    <i class="fas fa-user-graduate"></i>
+                    <h3>Join Game</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Genre Selection Page -->
+        <div id="genre-page" class="page">
+            <div class="header">
+                <button class="btn-icon" onclick="showPage('role')"><i class="fas fa-arrow-left"></i></button>
+                <h1 class="title">Select Genre</h1>
+                <div></div>
+            </div>
+            <div class="genre-grid">
+                <div class="genre-card" onclick="selectGenre('General Knowledge', 'fas fa-globe')">
+                    <i class="fas fa-globe"></i><br>General
+                </div>
+                <div class="genre-card" onclick="selectGenre('Books', 'fas fa-book')">
+                    <i class="fas fa-book"></i><br>Books
+                </div>
+                <div class="genre-card" onclick="selectGenre('Science', 'fas fa-flask')">
+                    <i class="fas fa-flask"></i><br>Science
+                </div>
+                <div class="genre-card" onclick="selectGenre('History', 'fas fa-monument')">
+                    <i class="fas fa-monument"></i><br>History
+                </div>
+                <div class="genre-card" onclick="selectGenre('Custom', 'fas fa-tools')">
+                    <i class="fas fa-tools"></i><br>Custom
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="proceedToCreation()">Next</button>
+        </div>
+
+        <!-- Quiz Creation Page -->
+        <div id="create-quiz-page" class="page">
+            <div class="header">
+                <button class="btn-icon" onclick="showPage('genre')"><i class="fas fa-arrow-left"></i></button>
+                <h1 class="title">Create Quiz</h1>
+                <div></div>
+            </div>
+            <div class="input-group">
+                <input type="text" id="quiz-title" placeholder="Quiz Title">
+            </div>
+            <div id="questions-list" class="creation-form">
+                <!-- Questions added here -->
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-icon" onclick="addQuestionInput()" title="Add Question"><i class="fas fa-plus"></i></button>
+                <button class="btn btn-primary" style="flex: 1;" onclick="finishQuizCreation()">Create & Host</button>
+            </div>
+        </div>
+
+        <!-- Host: Create/Lobby Page -->
+        <div id="host-lobby-page" class="page">
+            <div class="header">
+                <button class="btn-icon" onclick="location.reload()"><i class="fas fa-arrow-left"></i></button>
+                <h1 class="title">Game Lobby</h1>
+                <button class="btn btn-primary" onclick="startGame()">Start Quiz</button>
+            </div>
+            <div style="text-align: center;">
+                <p>Join at <strong>ScriptMaster</strong> using code:</p>
+                <div id="game-code" class="game-code-display">------</div>
+                <div class="qr-container">
+                    <img id="qr-code" src="" alt="QR Code">
+                </div>
+                <h3>Players Joined: <span id="player-count">0</span></h3>
+                <div id="lobby-players" class="lobby-players"></div>
+            </div>
+        </div>
+
+        <!-- Player: Join Page -->
+        <div id="player-join-page" class="page">
+            <div class="header">
+                <button class="btn-icon" onclick="showPage('role')"><i class="fas fa-arrow-left"></i></button>
+                <h1 class="title">Join Game</h1>
+                <div></div>
+            </div>
+            <div class="input-group">
+                <input type="text" id="join-code" placeholder="Game Code">
+            </div>
+            <div class="input-group">
+                <input type="text" id="join-username" placeholder="Your Name">
+            </div>
+            <p style="text-align: center; margin-top: 20px; opacity: 0.8;">Swipe to choose your photo:</p>
+            <div class="avatar-selection" id="avatar-selection">
+                <!-- Avatars injected by JS -->
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="joinGame()">Join Lobby</button>
+        </div>
+
+        <!-- Player: Waiting Page -->
+        <div id="player-wait-page" class="page">
+            <div style="text-align: center;">
+                <h2 id="wait-message">You're in!</h2>
+                <p>Wait for the host to start the game...</p>
+                <div class="score-circle" style="border-color: white;">
+                    <i class="fas fa-user-clock fa-3x"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Page (Shared) -->
+        <div id="quiz-page" class="page">
+            <div class="quiz-header">
+                <div class="timer-box"><i class="fas fa-clock"></i> <span id="timer-text">15</span>s</div>
+                <div id="quiz-info" class="timer-box">Question 1/10</div>
+            </div>
+            <div class="progress-container"><div id="progress-bar" class="progress-bar"></div></div>
+            <h2 id="question-text">Question?</h2>
+            <div id="options-grid" class="options-grid"></div>
+        </div>
+
+        <!-- Leaderboard/Result Page -->
+        <div id="result-page" class="page">
+            <div class="result-content">
+                <h2 id="result-title">Leaderboard</h2>
+                <div id="leaderboard-list" style="margin: 20px 0;"></div>
+                <button class="btn btn-primary" onclick="location.reload()">Back to Home</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Overlay for Players -->
+    <div id="feedback-overlay" class="feedback-overlay">
+        <i id="feedback-icon" class="fas"></i>
+        <h1 id="feedback-text">Correct!</h1>
+        <p id="feedback-points">+0 pts</p>
+    </div>
+
+    <!-- Intermediate Leaderboard for Host -->
+    <div id="leaderboard-overlay" class="leaderboard-overlay">
+        <h1 class="title" style="text-align: center;">Current Standings</h1>
+        <div id="mid-leaderboard-list" class="lobby-players" style="display: flex; flex-direction: column; gap: 10px; max-width: 600px; margin: 0 auto;"></div>
+        <div style="text-align: center; margin-top: 40px;">
+            <button id="next-btn" class="btn btn-primary" onclick="nextQuestion()">Next Question</button>
+        </div>
+    </div>
+
+    <!-- Persistent Game Code Banner -->
+    <div id="code-banner" class="game-code-banner" style="display: none;">
+        JOIN AT: <span id="banner-url"></span> | CODE: <span id="banner-code"></span>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
